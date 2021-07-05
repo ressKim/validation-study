@@ -25,13 +25,6 @@ import java.util.List;
 public class ValidationItemControllerV3 {
 
     private final ItemRepository itemRepository;
-    private final ItemValidator itemValidator;
-
-    //이 컨트롤러가 호출될 때마다 호출이 된다.
-    @InitBinder
-    public void init(WebDataBinder webDataBinder) {
-        webDataBinder.addValidators(itemValidator);
-    }
 
     @GetMapping
     public String items(Model model) {
@@ -54,179 +47,19 @@ public class ValidationItemControllerV3 {
     }
 
 
-    //bindingResult 의 위치는 @ModelAttribute 다음에 와야 한다.
-//    @PostMapping("/add")
-    public String addItemV1(@ModelAttribute Item item, BindingResult bindingResult, RedirectAttributes redirectAttributes, Model model) {
+    //@Valid(이거는 gradle 에 의존성 추가를 해야 사용 할 수 있다) , @Validated(이거는 자세히 보면 자바 표준으로 되어있다)
+    //@Validated 의 group 기능을 사용하는 것이 아니면 거의 비슷하다고 보면 된다.
 
-        //검증 로직
-        if (!StringUtils.hasText(item.getItemName())) {
-            bindingResult.addError(new FieldError("item", "itemName", "상품 이름은 필수 입니다."));
-        }
-        if (item.getPrice() == null || item.getPrice() < 1000 || item.getPrice() > 1000000) {
-            bindingResult.addError(new FieldError("item", "price", "가격은 1,000 ~ 1,000,000 까지 허용합니다."));
-        }
-        if (item.getQuantity() == null || item.getQuantity() >= 9999) {
-            bindingResult.addError(new FieldError("item", "quantity", "수량은 최대 9,999 까지 허용합니다."));
-        }
-
-        //특정 필드가 아닌 복합 룰 검증
-        if (item.getPrice() != null && item.getQuantity() != null) {
-            int resultPrice = item.getPrice() * item.getQuantity();
-            if (resultPrice < 10000) {
-                bindingResult.addError(new ObjectError("item", "가격 * 수량의 합은 10,000원 이상이어야 합니다. 현재 값 = " + resultPrice));
-            }
-        }
-
-        //검증에 실패하면 다시 입력 폼으로
-        if (bindingResult.hasErrors()) {
-            log.info("errors={} ", bindingResult);
-            return "validation/v3/addForm";
-        }
-
-        //성공 로직
-        Item savedItem = itemRepository.save(item);
-        redirectAttributes.addAttribute("itemId", savedItem.getId());
-        redirectAttributes.addAttribute("status", true);
-        return "redirect:/validation/v3/items/{itemId}";
-    }
-
-    //    @PostMapping("/add")
-    public String addItemV2(@ModelAttribute Item item, BindingResult bindingResult, RedirectAttributes redirectAttributes, Model model) {
-
-        //검증 로직
-        if (!StringUtils.hasText(item.getItemName())) {
-            bindingResult.addError(new FieldError("item", "itemName", item.getItemName(), false, null, null, "상품 이름은 필수 입니다."));
-        }
-        if (item.getPrice() == null || item.getPrice() < 1000 || item.getPrice() > 1000000) {
-            bindingResult.addError(new FieldError("item", "price", item.getPrice(), false, null, null, "가격은 1,000 ~ 1,000,000 까지 허용합니다."));
-        }
-        if (item.getQuantity() == null || item.getQuantity() >= 9999) {
-            bindingResult.addError(new FieldError("item", "quantity", item.getQuantity(), false, null, null, "수량은 최대 9,999 까지 허용합니다."));
-        }
-
-        //특정 필드가 아닌 복합 룰 검증
-        if (item.getPrice() != null && item.getQuantity() != null) {
-            int resultPrice = item.getPrice() * item.getQuantity();
-            if (resultPrice < 10000) {
-                bindingResult.addError(new ObjectError("item", null, null, "가격 * 수량의 합은 10,000원 이상이어야 합니다. 현재 값 = " + resultPrice));
-            }
-        }
-
-        //검증에 실패하면 다시 입력 폼으로
-        if (bindingResult.hasErrors()) {
-            log.info("errors={} ", bindingResult);
-            return "validation/v3/addForm";
-        }
-
-        //성공 로직
-        Item savedItem = itemRepository.save(item);
-        redirectAttributes.addAttribute("itemId", savedItem.getId());
-        redirectAttributes.addAttribute("status", true);
-        return "redirect:/validation/v3/items/{itemId}";
-    }
-
-    //    @PostMapping("/add")
-    public String addItemV3(@ModelAttribute Item item, BindingResult bindingResult, RedirectAttributes redirectAttributes, Model model) {
-
-        log.info("objectName={}", bindingResult.getObjectName());
-        log.info("target={}", bindingResult.getTarget());
-
-        //검증 로직
-        if (!StringUtils.hasText(item.getItemName())) {
-            //String 배열인 이유는 처음꺼를 찾고 없으면 두번째 ex default message 같은것을 넣게 설정 할 수도 있어서 이다.
-            bindingResult.addError(new FieldError("item", "itemName", item.getItemName(), false, new String[]{"required.item.itemName", "required.default"}, null, null));
-        }
-        if (item.getPrice() == null || item.getPrice() < 1000 || item.getPrice() > 1000000) {
-            bindingResult.addError(new FieldError("item", "price", item.getPrice(), false, new String[]{"range.item.price"}, new Object[]{1000, 1000000}, null));
-        }
-        if (item.getQuantity() == null || item.getQuantity() >= 9999) {
-            bindingResult.addError(new FieldError("item", "quantity", item.getQuantity(), false, new String[]{"max.item.quantity"}, new Object[]{9999}, null));
-        }
-
-        //특정 필드가 아닌 복합 룰 검증
-        if (item.getPrice() != null && item.getQuantity() != null) {
-            int resultPrice = item.getPrice() * item.getQuantity();
-            if (resultPrice < 10000) {
-                bindingResult.addError(new ObjectError("item", new String[]{"totalPriceMin"}, new Object[]{10000, resultPrice}, null));
-            }
-        }
-
-        //검증에 실패하면 다시 입력 폼으로
-        if (bindingResult.hasErrors()) {
-            log.info("errors={} ", bindingResult);
-            return "validation/v3/addForm";
-        }
-
-        //성공 로직
-        Item savedItem = itemRepository.save(item);
-        redirectAttributes.addAttribute("itemId", savedItem.getId());
-        redirectAttributes.addAttribute("status", true);
-        return "redirect:/validation/v3/items/{itemId}";
-    }
-
-    //    @PostMapping("/add")
-    public String addItemV4(@ModelAttribute Item item, BindingResult bindingResult, RedirectAttributes redirectAttributes, Model model) {
-
-        log.info("objectName={}", bindingResult.getObjectName());
-        log.info("target={}", bindingResult.getTarget());
-
-        //검증 로직
-
-        //간단한 조건은 이렇게 한줄로도 사용 가능 (복잡한건 안된다)
-        ValidationUtils.rejectIfEmptyOrWhitespace(bindingResult, "itemName", "required");
-//        if (!StringUtils.hasText(item.getItemName())) {
-//            bindingResult.rejectValue("itemName", "required");
-//        }
-
-        if (item.getPrice() == null || item.getPrice() < 1000 || item.getPrice() > 1000000) {
-            bindingResult.rejectValue("price", "range", new Object[]{1000, 10000000}, null);
-        }
-        if (item.getQuantity() == null || item.getQuantity() >= 9999) {
-            bindingResult.rejectValue("quantity", "max", new Object[]{9999}, null);
-        }
-
-        //특정 필드가 아닌 복합 룰 검증
-        if (item.getPrice() != null && item.getQuantity() != null) {
-            int resultPrice = item.getPrice() * item.getQuantity();
-            if (resultPrice < 10000) {
-                bindingResult.addError(new ObjectError("item", new String[]{"totalPriceMin"}, new Object[]{10000, resultPrice}, null));
-                bindingResult.reject("totalPriceMin", new Object[]{1000, resultPrice}, null);
-            }
-        }
-
-        //검증에 실패하면 다시 입력 폼으로
-        if (bindingResult.hasErrors()) {
-            log.info("errors={} ", bindingResult);
-            return "validation/v3/addForm";
-        }
-
-        //성공 로직
-        Item savedItem = itemRepository.save(item);
-        redirectAttributes.addAttribute("itemId", savedItem.getId());
-        redirectAttributes.addAttribute("status", true);
-        return "redirect:/validation/v3/items/{itemId}";
-    }
-
-//    @PostMapping("/add")
-    public String addItemV5(@ModelAttribute Item item, BindingResult bindingResult, RedirectAttributes redirectAttributes, Model model) {
-
-        itemValidator.validate(item, bindingResult);
-
-        //검증에 실패하면 다시 입력 폼으로
-        if (bindingResult.hasErrors()) {
-            log.info("errors={} ", bindingResult);
-            return "validation/v3/addForm";
-        }
-
-        //성공 로직
-        Item savedItem = itemRepository.save(item);
-        redirectAttributes.addAttribute("itemId", savedItem.getId());
-        redirectAttributes.addAttribute("status", true);
-        return "redirect:/validation/v3/items/{itemId}";
-    }
-
+    /**
+     * 1. @ModelAttribute 각각 필드에 타입 변환 시도
+     * > 성공하면 다음
+     * > 실패하면 typeMismatch 로 fieldError 추가
+     *
+     * 2. 바인딩 성공한 것들만 Bean validation 적용
+     * > 바인딩에 실패하면 어차피 적용하는게 의미가 없다.
+     */
     @PostMapping("/add")
-    public String addItemV6(@Validated @ModelAttribute Item item, BindingResult bindingResult, RedirectAttributes redirectAttributes, Model model) {
+    public String addItem(@Validated @ModelAttribute Item item, BindingResult bindingResult, RedirectAttributes redirectAttributes, Model model) {
 
         //검증에 실패하면 다시 입력 폼으로
         if (bindingResult.hasErrors()) {
